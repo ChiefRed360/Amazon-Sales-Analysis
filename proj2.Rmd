@@ -1,0 +1,263 @@
+---
+title: "Amazon Sales Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE,
+                      warning = FALSE, error = TRUE,
+                      fig.height = 3)
+
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(kableExtra)
+library(broman)
+theme_set(theme_minimal())
+```
+
+
+```{r}
+amazon = read_csv("amazon.csv")
+```
+
+## Introduction
+
+In the expansive Amazon marketplace, the volume of produce sales and customer ratings serve as key measures of product success and consumer satisfaction. This report explores the critical question:
+
+-> How do customer ratings differ among Amazon's product categories, and is there a correlation between these ratings and sales volumes?
+
+
+Our motivation is driven by the need to comprehend how ratings affect customer purchasing behaviors and the goal of this research is to gain a better understanding of the ways in which certain product qualities, such as ratings, impact consumer choices and may even have an impact on wider market trends.
+
+We propose that various elements, notably pricing and discount tactics, significantly impact customer purchasing decisions and reviews across different product categories. This hypothesis forms the foundation of our analysis: Customer satisfaction on Amazon is shaped by a complex array of factors that differ among categories, offering deep insights into online consumer behavior.
+
+## Background
+**Data background: **
+The dataset analyzed was gathered from publicly available customer reviews and product details on Amazon's official website. It contains data on over 1,000 Amazon product ratings and reviews, along with specific details for each product. This data represents a subset of the global collection of Amazon reviews, focusing specifically on the tech accessories category. As a leading American tech multinational company, Amazon's sales data provides significant value for both research and business analysis.
+
+
+- **Key Variables: **
+  - product_id: Unique identifier for each product.
+  - product_name: Name of the product.
+  - category: Classification of the product within Amazon's hierarchy.
+  - discounted_price: Product's discounted and original prices.
+  - actual_price: Product's original price
+  - discount_percentage: The percentage reduction from the original price.
+  - rating: The average user rating for the product.
+  - rating_count: The number of ratings a product has received.
+  - review_content: Text content of the user review.
+
+**Citation: **
+Karkavelraja J. Januart, 2023. “Amazon Sales Dataset”. Kaggle. https://www.kaggle.com/datasets/karkavelrajaj/amazon-sales-dataset/data
+
+
+> This capacity to gain focused insights into consumer behaviour and sales dynamics through a granular emphasis on key variables is essential for optimising product offers and marketing tactics in highly competitive digital marketplaces and our focus is to examine and assess the sales and rating performance across various product categories, along with investigating the correlation between customer ratings and sales volume for all products.
+
+
+## Analysis
+
+> We arrange and examine the data in our research, paying particular attention to how sales are distributed throughout different Amazon product categories. Assuming that greater rating counts correspond to higher customer demand and sales, we use rating counts as a stand-in for sales volume. The 'Computers & Accessories', 'Electronics', and 'Home & Kitchen' product categories are highlighted in this bar graph, it also shows how customer preferences change within each category. The categories with the greatest rating counts are assumed to be the most popular among consumers, probably because of their technological significance and fundamental usefulness. Important business decisions concerning product offerings are guided by this visualisation, which also helps in recognising consumer trends.
+
+```{r}
+#Retrieve the category and sales volume data.
+category = amazon %>%
+  mutate(category = sapply(strsplit(category, "\\|"), `[`, 1))%>%
+  filter(!is.na(rating_count))%>%
+  group_by(category)%>%
+  summarize(rating_count = sum(rating_count))
+```
+
+
+```{r}
+#Plotting the data
+ggplot(category, aes(x = category, y = rating_count, fill = category)) +
+  geom_col() +
+  theme_minimal() +
+  labs(title = "Product Category and Rating",
+       x = "Product Categories", y = "Rating Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1.1), plot.title = element_text(size = 12))
+```
+
+
+> Based on the first graph, it seems that the categories Computers & Accessories, Electronics, and Home & Kitchen exhibit the highest rating counts, indicating higher sales volume. Now, by concentrating on the product categories with lower rating counts and omitting the top three, this next bar graph enhances our study. Through dissecting these categories, we can gain a deeper understanding of less common product types and specialised markets. This study is essential for determining possible development regions or industries that could gain from more intensive marketing campaigns. These less common categories may provide insights into unexplored markets or chances for product diversification.
+
+```{r}
+category %>%
+  filter(category!="Electronics" & category!="Computers&Accessories" & category!="Home&Kitchen")%>%
+ggplot(aes(x = category, y = rating_count, fill = category)) +
+  geom_col() +
+  theme_minimal() +
+  labs(title = "Product Category and Rating Count",
+       x = "Product Categories", y = "Rating Count",
+       subtitle = "(excluding top 3 categories)") +
+  theme(axis.text.x = element_text(angle =45, hjust = 1, vjust = 1.1), plot.title = element_text(size = 12), plot.subtitle = element_text(size = 9))
+```
+
+
+A simpler way to show how sales volume is spread among different product categories is by illustrating the percentage of total rating counts contributed by each category. Therefore, The percentage distribution of all rating counts for each product category is shown in this table.
+
+```{r}
+categoryPct = category%>%
+  mutate(percentage = rating_count/sum(rating_count))%>%
+  select(category,percentage)
+
+print(categoryPct)
+```
+
+
+In general, there are notable differences in sales volume across various product categories. Notably, `Computers & Accessories`, `Electronics`, and `Home & Kitchen` collectively represent a significant portion of the total rating count or sales volume for all Amazon products. 
+
+
+> Afterward, we'll analyze customer ratings for each product category to evaluate overall consumer satisfaction levels. We'll use the mean rating as a measure of the rating for each product category and visualize the data accordingly.
+
+```{r}
+categoryRating= amazon %>%
+  mutate(category = sapply(strsplit(category, "\\|"), `[`, 1))%>%
+  filter(!is.na(rating))%>%
+  group_by(category)%>%
+  summarize(mean_rating = mean(rating))
+
+ggplot(categoryRating, aes(x = category, y=mean_rating)) +
+  geom_col(aes(fill=category)) +
+  theme_minimal() +
+  labs(title = "Average Rating for Each Category", x = "Product Categories", y = "Average Rating")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1.1),plot.title = element_text(size = 12))
+```
+
+The average rating graph for many product categories shows a generally stable degree of consumer satisfaction. Notably, categories like "Computers & Accessories" and "Electronics," which have a higher volume of reviews, demonstrate that a bigger volume of ratings does not always equate to a lower perceived quality. This constancy shows that a variety of product lines are meeting consumer expectations.
+
+> We delved deeper to examine the rating distribution for each product category using box plots.
+
+```{r}
+ratingDetails= amazon %>%
+  mutate(category = sapply(strsplit(category, "\\|"), `[`, 1))%>%
+  filter(!is.na(rating))
+
+ggplot(ratingDetails, aes(x = category, y = rating)) +
+  geom_boxplot(aes(fill = category)) +
+  ylab("Rating Distribution") +
+  xlab("Category") +
+  ggtitle("Rating Distributions for Product Categories") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust=1.1), plot.title = element_text(size = 10))
+```
+
+
+Here we observe significant variation in the distribution of `Rating` across different product categories. Some categories display wide spreads in rating distribution, while others have narrower ones. When juxtaposing this graph with the bar plots depicting `Product Category` against `Rating Count`, we observed that categories with higher sales volume (rating count) tend to exhibit broader distributions. This correlation is logical, as larger databases offer a more comprehensive representation of the data's characteristics.
+
+
+> Next, we're investigating the potential correlation between customer ratings and sales volume across all product categories on Amazon. Due to the absence of actual sales data, we'll use the number of ratings as a approximate measure to estimate sales volume. The scatter plot will depict product ratings against the number of ratings, allowing us to visually ascertain whether products with higher ratings also tend to have higher sales. This straightforward yet informative analysis aims to uncover any trends indicating that customer ratings could impact sales.
+
+
+```{r}
+# Convert rating_count to numeric if it's not already
+amazon$rating_count = as.numeric(gsub(",", "", amazon$rating_count))
+
+summary(amazon$rating)
+summary(amazon$rating_count)
+
+ggplot(amazon, aes(x = rating, y = rating_count)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  xlab("Average Rating") +
+  ylab("Rating Count (proxy for sales)") +
+  ggtitle("Relationship Between Average Rating and Sales Volume") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust=1.1), plot.title = element_text(size = 10))
+```
+
+
+In the following graph, it uses a logarithmic scale which makes the relationship between product ratings and sales volume more clear, especially for products that have very high or low rating counts. With a few exceptions, the log transformation helps control the large range of values, enhancing the trend and emphasising that, on the whole, higher-rated products outperform lower-rated ones in terms of sales.
+
+
+```{r}
+ggplot(amazon, aes(x = rating, y = log1p(rating_count))) +
+  geom_point(alpha = 0.5) + 
+  geom_smooth(method = "lm", color = "red", se = FALSE) +  
+  scale_y_log10(labels = scales::comma) +  
+  labs(
+    x = "Average Rating",
+    y = "Log-scaled Rating Count",
+    title = "Log-scaled Relationship Between Rating and Sales"
+  ) +
+  theme_minimal() 
+
+```
+
+#### Hypothesis Test
+
+$$
+H_0:  \theta = 0 \\
+H_a:  \theta \neq 0
+$$
+
+We test the null that our slope parameter $\theta$ is 0, suggesting no correlation between `Average Product Rating` and `Number of Ratings`, against the alternative that there is a correlation.
+
+
+
+#### Test Statistic
+
+$$
+T = \frac{\hat{\theta} - 0}{s_{\hat{\theta}}}
+$$
+
+
+```{r}
+cor.test(amazon$rating, amazon$rating_count, method = "pearson", use = "complete.obs")
+```
+
+
+**Hypothesis: **
+In our analysis, a value of 0.1022348 suggests a positive yet weak correlation. This implies that as the average rating rises, the number of ratings (our sales proxy) also tends to increase, albeit with limited strength.
+
+**P-value: **
+With a p-value below the conventional threshold of 0.05, we can dismiss the null hypothesis asserting no correlation between the two variables. Thus, there is statistically significant evidence supporting the existence of a relationship between average rating and the number of ratings.
+
+**Confidence Interval: **
+The confidence interval for the correlation coefficient spans from 0.05123617 to 0.15270166. This interval provides an estimation of the possible values for the true correlation coefficient, with 95% confidence. As the interval excludes 0, it reinforces the conclusion of a positive correlation.
+
+#### Interpretation
+
+The Amazon data reveals a minor positive association between `Product Ratings` and the `Number of Ratings`, indicated by a Pearson correlation coefficient of 0.10. Despite its statistical significance, the correlation suggests a weak relationship. This implies that while improved ratings might marginally boost the number of ratings—our proxy for estimating sales—they do not independently ensure higher sales. Hence, other factors such as marketing strategies and product visibility likely exert considerable influence on sales outcomes.
+
+> As we delve further into Amazon's product data, our attention shifts towards comprehending the probabilities associated with various rating levels. To illustrate this, we'll create two plots: one displaying the probability distribution of ratings (indicating the expected density of ratings around the average) and another depicting the cumulative probability (reflecting the likelihood of a rating being at or below a specific level). These visual aids will facilitate our understanding of the probabilities associated with encountering products of different ratings on Amazon, offering valuable guidance for sellers' strategies and insights for buyers.
+
+```{r}
+
+mean_rating = mean(amazon$rating, na.rm = TRUE)
+sd_rating = sd(amazon$rating, na.rm = TRUE)
+
+prob_greater_than_4_5 = pnorm(4.5, mean = mean_rating, sd = sd_rating, lower.tail = FALSE)
+prob_less_than_4_5 = pnorm(4.5, mean = mean_rating, sd = sd_rating, lower.tail = TRUE)
+
+x_values = seq(min(amazon$rating, na.rm = TRUE), max(amazon$rating, na.rm = TRUE), length.out = 100)
+y_values = dnorm(x_values, mean = mean_rating, sd = sd_rating)
+
+plot(x_values, y_values, type = "l", main = "Two-Tailed Skewed Distribution of Average Ratings", xlab = "Rating", ylab = "Density")
+
+```
+
+The "Normal Distribution of Average Ratings" plot suggests that most products have ratings around the middle of the scale, with fewer products at the very high or low ends. The "CDF of Average Ratings" plot shows the probability of a product having a rating up to a certain value, indicating most ratings are below 5. Together, these plots hint that on Amazon, products mostly receive moderate ratings, with extreme ratings being less typical.
+
+## Discussion
+
+#### Interpretation of Results
+
+The analysis reveals a positive correlation between product ratings and sales volume on Amazon, indicating that higher ratings are associated with increased sales. However, this correlation is relatively weak, suggesting that other factors, such as marketing strategies and product visibility, also significantly influence sales outcomes. Additionally, the distribution of ratings suggests that most products on Amazon receive moderate ratings, with extreme ratings being less common. A multifaceted approach to product placement and sales forecasting is suggested by the complicated relationship between ratings and sales volume, which shows ratings's potential as predictive but not conclusive indications of sales success.
+
+#### Potential Shortcomings
+
+The main drawback of our analysis stems from its dependence solely on Amazon ratings to gauge customer satisfaction and engagement. This reliance introduces subjectivity, as ratings can be influenced by various factors beyond product quality, leading to potential bias. For example, customers who are more inclined to leave reviews may hold extreme opinions, thereby affecting the average rating towards either positive or negative extremes. Furthermore, our analysis overlooks other indicators such as written customer reviews, return rates, and repeat purchases, which could offer a more comprehensive understanding of customer satisfaction. Furthermore, the dataset's restriction to Amazon might have missed more general e-commerce trends or customer preferences, which might differ greatly on other platforms or in other geographic areas.
+
+#### Future Directions
+
+- New Questions: Future research could explore the sales volume of the same product both on Amazon and in-store. By comparing the sales numbers and prices, sellers may discern whether e-commerce is more competitive compared to physical stores.
+
+- Different Methods: In the future, it is possible to implement advanced machine learning algorithms to predict sales trends based on various product attributes and customer behaviors. Furthermore, employing text mining techniques on customer reviews and sentiment analysis could offer deeper insights into consumer preferences and product sentiment on Amazon.
+
+- New Data: This might include collecting data on customer demographics, such as age, gender, and location, to better understand target markets and tailor marketing strategies accordingly. Moreover, acquiring data on competitor pricing and promotional strategies would offer valuable insights to inform pricing decisions and enhance competitiveness on the platform.
+
+- Investigating longitudinal data may also highlight changes in consumer trends over time, offering insights into the lifetime of consumer loyalty and product popularity.
+
+#### Conclusion
+
+The main takeaway from the analysis highlights the pivotal factors that impact product popularity and sales effectiveness on Amazon. Items with favorable customer reviews and high ratings demonstrate stronger sales performance. Moreover, the data indicates that customer feedback, encompassing both ratings and written reviews, significantly influences potential buyers' decision-making processes. These insights are largely supported by the examination of product ratings, review content, and observed pricing strategies within the dataset. In reality, it is crucial to contextualize these findings within the e-commerce realm and acknowledge the constraints of the dataset. This analysis highlights how complicated the e-commerce environment is, with a variety of elements driving the sales engine, including but not limited to customer ratings. This emphasises how important it is to have strong analytics when making strategic decisions.
